@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000'/%3E%3Ctext x='16' y='24' font-size='23' font-family='Georgia,serif' fill='%23cccccc' text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E">
+  <title>Black Shades</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      color: #e8e8e8;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    #wrap {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
+    /* Keep the 16:9 backbuffer undistorted, with letterboxing and crisp pixel scaling. */
+    #canvas {
+      display: block;
+      width: min(100vw, calc(100vh * 16 / 9));
+      height: min(100vh, calc(100vw * 9 / 16));
+      background: #000;
+      border: 0;
+      outline: none;
+      cursor: default;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    #overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #1a0a0a 0%, #000 70%);
+      z-index: 20;
+      transition: opacity .35s ease;
+    }
+    #overlay h1 {
+      margin: 0 0 .35em;
+      font-size: clamp(34px, 7vw, 84px);
+      font-weight: 300;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: #ddd;
+      text-shadow: 0 0 22px rgba(180, 30, 30, .55);
+    }
+    #overlay .sub {
+      color: #8c8c8c;
+      font-size: clamp(11px, 1.4vw, 15px);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      margin-bottom: 2.2em;
+    }
+    #bar {
+      width: min(420px, 70vw);
+      height: 3px;
+      background: #222;
+      overflow: hidden;
+      display: none;
+    }
+    #bar > div {
+      width: 0%;
+      height: 100%;
+      background: #8e1d1d;
+      transition: width .2s linear;
+    }
+    #status {
+      margin-top: 1em;
+      min-height: 1.2em;
+      color: #777;
+      font-size: 12px;
+      letter-spacing: .08em;
+    }
+    #start, #controls-btn {
+      margin-top: 1.6em;
+      padding: 10px 34px;
+      border: 1px solid rgba(200, 60, 60, .55);
+      background: rgba(20, 0, 0, .65);
+      color: #d6d6d6;
+      font: inherit;
+      font-size: 13px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    #controls-btn {
+      border-color: rgba(120, 130, 140, .55);
+      background: rgba(15, 15, 20, .65);
+      color: #ccc;
+      font-size: 12px;
+      margin-top: .8em;
+    }
+    #start:hover {
+      color: #fff;
+      border-color: rgba(230, 90, 90, .9);
+      box-shadow: 0 0 18px rgba(170, 25, 25, .35);
+    }
+    #controls-btn:hover {
+      color: #fff;
+      border-color: rgba(180, 190, 200, .9);
+    }
+    #hint {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      display: none;
+      padding: 8px 16px;
+      border: 1px solid rgba(200, 60, 60, .5);
+      background: rgba(0, 0, 0, .72);
+      color: #ddd;
+      font-size: 13px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      z-index: 10;
+      user-select: none;
+    }
+    #fullscreen {
+      position: fixed;
+      top: 10px;
+      right: 12px;
+      z-index: 30;
+      padding: 5px 10px;
+      border: 1px solid #333;
+      background: rgba(0, 0, 0, .55);
+      color: #888;
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      user-select: none;
+    }
+    #fullscreen:hover { color: #ddd; border-color: #666; }
+    #objective {
+      margin-top: 1.2em;
+      color: #aaa;
+      font-size: 12px;
+      letter-spacing: .05em;
+      text-align: center;
+      line-height: 1.5;
+      max-width: 500px;
+    }
+    #controls-page {
+      position: fixed;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #0a0a12 0%, #000 70%);
+      z-index: 30;
+      color: #ddd;
+      padding: 2em;
+      text-align: center;
+    }
+    #controls-page h2 {
+      margin: 0 0 .35em;
+      font-weight: 300;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: #ddd;
+      font-size: clamp(28px, 5vw, 60px);
+    }
+    #controls-page .ctrl-list {
+      margin: 1.5em 0;
+      color: #aaa;
+      font-size: 15px;
+      line-height: 1.7;
+      letter-spacing: .06em;
+      text-align: left;
+    }
+    #controls-page .ctrl-list .key {
+      color: #ccc;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(200,60,60,.35);
+      padding-bottom: 1px;
+    }
+    #back-btn {
+      margin-top: 1em;
+      padding: 10px 34px;
+      border: 1px solid rgba(200, 60, 60, .55);
+      background: rgba(20, 0, 0, .65);
+      color: #d6d6d6;
+      font: inherit;
+      font-size: 13px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    #back-btn:hover {
+      color: #fff;
+      border-color: rgba(230, 90, 90, .9);
+      box-shadow: 0 0 18px rgba(170, 25, 25, .35);
+    }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+  </div>
+
+  <div id="overlay">
+    <h1>Black Shades</h1>
+    <div id="bar"><div id="barfill"></div></div>
+    <button id="start" type="button">Click to Start</button>
+    <button id="controls-btn" type="button">Controls</button>
+    <div id="objective">Objective: Protect the VIP (white shirt)</div>
+    <div id="status">Loading&hellip;</div>
+  </div>
+
+  <div id="controls-page">
+    <h2>Black Shades — Controls</h2>
+    <div class="ctrl-list">
+      <div><span class="key">W / A / S / D</span> or <span class="key">Arrow Keys</span> — Move</div>
+      <div><span class="key">Mouse</span> — Aim / Look</div>
+      <div><span class="key">Left Click</span> — Shoot</div>
+      <div><span class="key">Ctrl</span> — Crouch / Sniper Zoom</div>
+      <div><span class="key">Right Click</span> — Sniper Zoom (while aiming sniper)</div>
+      <div><span class="key">Q</span> — Raise / Lower Weapon</div>
+      <div><span class="key">Space</span> — Jump / Action</div>
+      <div><span class="key">Shift</span> — Run / Sprint</div>
+      <div><span class="key">E / R</span> — Interact / Reload</div>
+      <div><span class="key">Esc</span> — Pause / release mouse</div>
+    </div>
+    <button id="back-btn" type="button">Back to Main</button>
+  </div>
+
+  <div id="hint">Click to capture mouse</div>
+  <div id="fullscreen" title="Toggle fullscreen">Fullscreen</div>
+
+  <script type="text/javascript">
+    function shouldSuppress(msg) {
+      if (typeof msg !== 'string') {
+        try { msg = String(msg); } catch(e) { return false; }
+      }
+      return msg.indexOf('Vertex buffer') !== -1 ||
+             msg.indexOf('GL_INVALID_OPERATION') !== -1 ||
+             msg.indexOf('WebGL-') !== -1 ||
+             msg.indexOf('draw call') !== -1 ||
+             msg.indexOf('GL emulation') !== -1 ||
+             msg.indexOf('immediate mode emulation') !== -1 ||
+             msg.indexOf('coords are supplied') !== -1 ||
+             msg.indexOf('texture unit is disabled') !== -1 ||
+             msg.indexOf('STUB') !== -1;
+    }
+
+    ['log', 'warn', 'error', 'info', 'debug'].forEach(function(method) {
+      var original = console[method];
+      if (original) {
+        console[method] = function(...args) {
+          var msg = args.map(function(arg) {
+            try { return typeof arg === 'string' ? arg : JSON.stringify(arg); } catch(e) { return String(arg); }
+          }).join(' ');
+          if (shouldSuppress(msg)) return;
+          original.apply(console, args);
+        };
+      }
+    });
+
+    var canvas = document.getElementById('canvas');
+    var overlay = document.getElementById('overlay');
+    var statusElement = document.getElementById('status');
+    var barFill = document.getElementById('barfill');
+    var barElement = document.getElementById('bar');
+    var startButton = document.getElementById('start');
+    var hint = document.getElementById('hint');
+
+    window.__blackshadesInGame = false;
+
+    function updateLockHint() {
+      var locked = document.pointerLockElement === canvas;
+      hint.style.display = (window.__blackshadesInGame && !locked) ? 'block' : 'none';
+      canvas.style.cursor = window.__blackshadesInGame && locked ? 'none' : 'default';
+    }
+    window.__blackshadesUpdateLockHint = updateLockHint;
+
+    document.addEventListener('pointerlockchange', updateLockHint);
+    document.addEventListener('pointerlockerror', updateLockHint);
+
+    function captureMouse() {
+      if (!window.__blackshadesInGame) return;
+      if (document.pointerLockElement !== canvas) {
+        var p = canvas.requestPointerLock();
+        if (p && p.catch) p.catch(function () {});
+      }
+    }
+
+    canvas.addEventListener('mousedown', captureMouse);
+    hint.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      captureMouse();
+    });
+
+    document.getElementById('fullscreen').addEventListener('click', function () {
+      if (!document.fullscreenElement) {
+        var p = document.documentElement.requestFullscreen();
+        if (p && p.catch) p.catch(function () {});
+      } else {
+        document.exitFullscreen();
+      }
+    });
+
+    canvas.addEventListener('webglcontextlost', function (e) {
+      e.preventDefault();
+      setStatus('WebGL context lost. Attempting recovery...');
+      overlay.style.display = 'flex';
+      overlay.style.opacity = '1';
+    }, false);
+
+    canvas.addEventListener('webglcontextrestored', function () {
+      setStatus('WebGL context restored.');
+      setTimeout(hideOverlay, 1000);
+    }, false);
+
+    var statusText = 'Loading\u2026';
+    var progressValue = 0;
+    function setStatus(text) {
+      if (typeof text !== 'string') text = '';
+      statusText = text;
+      if (!text) {
+        statusElement.textContent = '';
+        return;
+      }
+      var m = text.match(/(.*?)\((\d+(?:\.\d+)?)\s*\/\s*(\d+)\)/);
+      if (m) {
+        progressValue = Math.max(0, Math.min(100, (parseFloat(m[2]) / parseFloat(m[3])) * 100));
+        barFill.style.width = progressValue + '%';
+        statusElement.textContent = m[1].trim();
+      } else {
+        statusElement.textContent = text;
+      }
+    }
+
+    function hideOverlay() {
+      overlay.style.opacity = '0';
+      setTimeout(function () { overlay.style.display = 'none'; }, 400);
+      updateLockHint();
+      try { canvas.focus(); } catch (e) {}
+    }
+
+    var Module = {
+      canvas: canvas,
+      print: function () {
+        var msg = Array.prototype.slice.call(arguments).map(function(arg) { return String(arg); }).join(' ');
+        if (shouldSuppress(msg)) return;
+        console.log.apply(console, arguments);
+      },
+      printErr: function () {
+        var msg = Array.prototype.slice.call(arguments).map(function(arg) { return String(arg); }).join(' ');
+        if (shouldSuppress(msg)) return;
+        console.error.apply(console, arguments);
+      },
+      setStatus: setStatus,
+      totalDependencies: 0,
+      monitorRunDependencies: function (left) {
+        this.totalDependencies = Math.max(this.totalDependencies, left);
+        setStatus(left ? 'Loading (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : '');
+      },
+      preRun: [],
+      postRun: [hideOverlay],
+      onAbort: function (what) {
+        setStatus('Failed to start: ' + what);
+        overlay.style.opacity = '1';
+        overlay.style.display = 'flex';
+        barFill.style.background = '#a00';
+        barFill.style.width = '100%';
+      }
+    };
+
+    var gameStarted = false;
+    function startGame() {
+      if (gameStarted) return;
+      gameStarted = true;
+      startButton.style.display = 'none';
+      document.getElementById('controls-btn').style.display = 'none';
+      document.getElementById('objective').style.display = 'none';
+      barElement.style.display = 'block';
+      setStatus('Loading\u2026');
+      var gameLoader = document.getElementById('game-loader');
+      if (!gameLoader) {
+        setStatus('Failed to load game script template.');
+        return;
+      }
+      try {
+        document.body.appendChild(document.importNode(gameLoader.content, true));
+      } catch (err) {
+        setStatus('Error starting engine: ' + err.message);
+        console.error(err);
+      }
+    }
+    window.__blackshadesStart = startGame;
+    startButton.addEventListener('click', function (e) {
+      e.preventDefault();
+      startGame();
+    });
+
+    var controlsBtn = document.getElementById('controls-btn');
+    var controlsPage = document.getElementById('controls-page');
+    var backBtn = document.getElementById('back-btn');
+
+    function showControls() {
+      overlay.style.display = 'none';
+      controlsPage.style.display = 'flex';
+    }
+    function showMain() {
+      controlsPage.style.display = 'none';
+      overlay.style.display = 'flex';
+    }
+
+    if (controlsBtn) controlsBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      showControls();
+    });
+    if (backBtn) backBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      showMain();
+    });
+
+    setStatus('');
+  </script>
+
+  <template id="game-loader"><script async type="text/javascript" src="index.js"></script></template>
+</body>
+</html>

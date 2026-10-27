@@ -1,0 +1,41 @@
+/********************> Headers <*****/
+#include "Game.h"
+/********************> Globals <*****/
+Game game;
+/********************> main() <*****/
+
+int 	main( int argc, char *argv[] )
+	{
+#ifdef OS9 
+	ToolboxInit();
+	if ( HasAppearance() )
+	{
+		RegisterAppearanceClient();
+	}
+#endif
+	
+
+
+
+	game.InitGL();
+	game.InitGame(game.screen);
+
+	game.EventLoop();
+
+#ifndef __EMSCRIPTEN__
+	game.Dispose();
+#endif
+
+	
+#ifdef OS9 
+	if ( HasAppearance() )
+	{
+		UnregisterAppearanceClient();
+	}
+	FlushEvents( everyEvent, 0 );
+	ExitToShell();
+#endif
+
+	return 0;
+}
+
